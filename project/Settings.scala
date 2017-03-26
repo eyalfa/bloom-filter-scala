@@ -18,6 +18,8 @@ object Settings {
   lazy val root = build ++ Testing.settings ++ Publishing.noPublishSettings
   lazy val bloomfilter = build ++ Testing.settings ++ Dependencies.bloomfilter ++ Publishing.settings ++
       (scalacOptions ++= ScalacSettings.strictBase ++ ScalacSettings.strictSpecificFor(scalaVersion.value))
+  lazy val bloomfilterKryo = build ++ Testing.settings ++ Dependencies.bloomfilterKryo ++ Publishing.settings ++
+    (scalacOptions ++= ScalacSettings.strictBase ++ ScalacSettings.strictSpecificFor(scalaVersion.value))
   lazy val sandbox = build ++ Testing.settings ++ Dependencies.sandbox ++ Publishing.noPublishSettings
   lazy val sandboxApp = build ++ Dependencies.sandboxApp ++ Publishing.noPublishSettings
   lazy val tests = build ++ Testing.settings ++ Dependencies.tests ++ Publishing.noPublishSettings

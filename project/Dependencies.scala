@@ -13,10 +13,12 @@ object Dependencies {
   private val chronicleBytes = "net.openhft" % "chronicle-bytes" % "1.2.3"
   private val allocationInstrumenter = "com.google.code.java-allocation-instrumenter" % "java-allocation-instrumenter" % "3.0.1"
   private val stream = "com.clearspring.analytics" % "stream" % "2.7.0"
+  private val kryo = "com.esotericsoftware" % "kryo" % "4.0.0"
 
   private val common = dependencies()
 
   val bloomfilter = common
+  val bloomfilterKryo = common ++ dependencies(kryo)
   val sandbox = common ++ dependencies(chronicleBytes)
   val sandboxApp = common ++ dependencies(allocationInstrumenter, algebird)
   val tests = common ++ dependencies(scalatest, scalacheck)
