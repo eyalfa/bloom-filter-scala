@@ -3,6 +3,8 @@ package tests.bloomfilter.mutable
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
 
 import bloomfilter.mutable.UnsafeBitArray
+import com.esotericsoftware.kryo.Kryo
+import com.esotericsoftware.kryo.io.{Input, Output}
 import org.scalacheck.Test.Parameters
 import org.scalacheck.commands.Commands
 import org.scalacheck.{Gen, Prop, Properties}
@@ -12,6 +14,7 @@ class UnsafeBitArraySpec extends Properties("UnsafeBitArray") with Matchers with
 
   property("set & get") = new UnsafeBitArrayCommands().property()
   property("serializable") = serializationProp
+  property("kryo serialization") = kryoProp
 
   override def overrideParameters(p: Parameters): Parameters = {
     super.overrideParameters(p).withMinSuccessfulTests(1000)
@@ -61,21 +64,40 @@ class UnsafeBitArraySpec extends Properties("UnsafeBitArray") with Matchers with
 
   }
 
-  def serializationProp: Prop = {
-    case class State(sz: Int, included: Set[Long])
-    val genState = for {
-      sz <- Gen.posNum[Int]
-      included <- Gen.listOf(Gen.choose(0L, sz - 1))
-    } yield {
-      State(sz, included.toSet)
+  case class SerializationTestCase(sz: Int, included: Set[Long]){
+    def withBits[T]( f: UnsafeBitArray => T ) : T = {
+      val bits = new UnsafeBitArray(sz)
+      try {
+        included.foreach(bits.set)
+        f(bits)
+      } finally bits.dispose
     }
 
-    Prop.forAll(genState) {
-      case State(sz, included) =>
-        val bits = new UnsafeBitArray(sz)
-        try {
-          included.foreach(bits.set)
+    def deserializedProp( bits : UnsafeBitArray, deserialized : AnyRef ) = {
+      deserialized should not be null
+      deserialized should be(a[UnsafeBitArray])
+      val deserializedBits = deserialized.asInstanceOf[UnsafeBitArray]
+      try {
+        deserializedBits.numberOfBits should equal(bits.numberOfBits)
+        forAll(0l until bits.numberOfBits) { idx =>
+          bits.get(idx) should equal(deserializedBits.get(idx))
+        }
+        Prop.passed
+      } finally {
+        deserializedBits.dispose()
+      }
+    }
+  }
+  def genSerializationTestCase = for {
+    sz <- Gen.posNum[Int]
+    included <- Gen.listOf(Gen.choose(0L, sz - 1))
+  } yield {
+    SerializationTestCase(sz, included.toSet)
+  }
 
+  def serializationProp: Prop = {
+    Prop.forAll(genSerializationTestCase) { serializationTestCase =>
+      serializationTestCase.withBits{ bits =>
           val bos = new ByteArrayOutputStream()
           val oos = new ObjectOutputStream(bos)
           oos.writeObject(bits)
@@ -85,19 +107,29 @@ class UnsafeBitArraySpec extends Properties("UnsafeBitArray") with Matchers with
           val deserialized = ois.readObject()
           ois.close()
 
-          deserialized should not be null
-          deserialized should be(a[UnsafeBitArray])
-          val deserializedBits = deserialized.asInstanceOf[UnsafeBitArray]
-          try {
-            deserializedBits.numberOfBits should equal(bits.numberOfBits)
-            forAll(0l until bits.numberOfBits) { idx =>
-              bits.get(idx) should equal(deserializedBits.get(idx))
-            }
-          } finally {
-            deserializedBits.dispose()
-          }
-        } finally bits.dispose()
-        Prop.passed
+          serializationTestCase.deserializedProp(bits, deserialized)
+        }
+    }
+  }
+
+  def kryoProp : Prop = {
+    Prop.forAll(genSerializationTestCase) { serializationTestCase =>
+      serializationTestCase.withBits{ bits =>
+        val kryo = new Kryo()
+        kryo.setReferences(true)
+        bloomfilter.kryo.mutable.UnsafeBitArray.register(kryo)
+
+        val bos = new ByteArrayOutputStream()
+        val outp = new Output(bos)
+
+        kryo.writeClassAndObject(outp, bits)
+        outp.close()
+        val bis = new ByteArrayInputStream(bos.toByteArray)
+        val inp = new Input(bis)
+        val deserialized = kryo.readClassAndObject(inp)
+
+        serializationTestCase.deserializedProp(bits, deserialized)
+      }
     }
   }
 }
