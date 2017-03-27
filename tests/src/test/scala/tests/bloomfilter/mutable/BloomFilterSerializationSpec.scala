@@ -2,6 +2,7 @@ package tests.bloomfilter.mutable
 
 import java.io._
 
+import bloomfilter.mutable
 import bloomfilter.mutable.BloomFilter
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.{Input, Output}
@@ -82,8 +83,7 @@ class BloomFilterSerializationSpec extends Properties("BloomFilter") with Matche
       case (size, indices) =>
         val kryo = new Kryo()
         kryo.setRegistrationRequired(true)
-
-        bloomfilter.kryo.mutable.BloomFilter.register(kryo)
+        mutable.KryoRegistrar(kryo)
 
         val file = File.createTempFile("bloomFilterSerialized", ".tmp")
         val initial = BloomFilter[Long](size, 0.01)

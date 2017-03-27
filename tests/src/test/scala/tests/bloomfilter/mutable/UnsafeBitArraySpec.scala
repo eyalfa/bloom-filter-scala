@@ -2,6 +2,7 @@ package tests.bloomfilter.mutable
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
 
+import bloomfilter.mutable
 import bloomfilter.mutable.UnsafeBitArray
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.{Input, Output}
@@ -117,7 +118,7 @@ class UnsafeBitArraySpec extends Properties("UnsafeBitArray") with Matchers with
       serializationTestCase.withBits{ bits =>
         val kryo = new Kryo()
         kryo.setRegistrationRequired(true)
-        bloomfilter.kryo.mutable.UnsafeBitArray.register(kryo)
+        mutable.KryoRegistrar(kryo)
 
         val bos = new ByteArrayOutputStream()
         val outp = new Output(bos)
