@@ -3,6 +3,8 @@ package tests.bloomfilter.mutable
 import java.io._
 
 import bloomfilter.mutable.BloomFilter
+import com.esotericsoftware.kryo.Kryo
+import com.esotericsoftware.kryo.io.{Input, Output}
 import org.scalacheck.Prop.forAll
 import org.scalacheck.{Gen, Properties}
 import org.scalatest.Matchers
@@ -42,7 +44,7 @@ class BloomFilterSerializationSpec extends Properties("BloomFilter") with Matche
   property("supports java serialization") = {
     forAll(gen) {
       case (size, indices) =>
-        val initial = BloomFilter[Long](size, 0.01)
+        val initial = BloomFilter[Long](size min 1, 0.01)
         indices.foreach(initial.add)
         val file = File.createTempFile("bloomFilterSerialized", ".tmp")
         val out = new BufferedOutputStream(new FileOutputStream(file), 10 * 1000 * 1000)
@@ -74,4 +76,45 @@ class BloomFilterSerializationSpec extends Properties("BloomFilter") with Matche
     }
   }
 
+  property("supports kryo serialization") = {
+    import org.scalacheck.Shrink.shrinkAny
+    forAll(gen) {
+      case (size, indices) =>
+        val kryo = new Kryo()
+        kryo.setRegistrationRequired(true)
+
+        bloomfilter.kryo.mutable.BloomFilter.register(kryo)
+
+        val file = File.createTempFile("bloomFilterSerialized", ".tmp")
+        val initial = BloomFilter[Long](size, 0.01)
+        try {
+          indices.foreach(initial.add)
+          val out = new BufferedOutputStream(new FileOutputStream(file), 10 * 1000 * 1000)
+          val kout = new Output(out)
+          kryo.writeClassAndObject(kout, initial)
+          kout.close()
+          val in = new BufferedInputStream(new FileInputStream(file), 10 * 1000 * 1000)
+          val kin = new Input(in)
+          val desrialized = kryo.readClassAndObject(kin)
+          kin.close()
+
+          desrialized should not be null
+          desrialized should be(a[BloomFilter[Long]])
+          val sut = desrialized.asInstanceOf[BloomFilter[Long]]
+          try {
+            sut.numberOfBits shouldEqual initial.numberOfBits
+            sut.numberOfHashes shouldEqual initial.numberOfHashes
+
+            val result = indices.forall(sut.mightContain)
+            result
+          } finally sut.dispose()
+        } finally {
+          initial.dispose()
+          if(file.exists()) file.delete()
+        }
+    }
+  }
+
 }
+
+

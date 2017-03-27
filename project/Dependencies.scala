@@ -14,11 +14,13 @@ object Dependencies {
   private val allocationInstrumenter = "com.google.code.java-allocation-instrumenter" % "java-allocation-instrumenter" % "3.0.1"
   private val stream = "com.clearspring.analytics" % "stream" % "2.7.0"
   private val kryo = "com.esotericsoftware" % "kryo" % "4.0.0"
+  private val objenesis = "org.objenesis" % "objenesis" % "2.5.1"
+  private val chill = "com.twitter" %% "chill" % "0.9.2"
 
   private val common = dependencies()
 
   val bloomfilter = common
-  val bloomfilterKryo = common ++ dependencies(kryo)
+  val bloomfilterKryo = common ++ dependencies(kryo, objenesis, chill)
   val sandbox = common ++ dependencies(chronicleBytes)
   val sandboxApp = common ++ dependencies(allocationInstrumenter, algebird)
   val tests = common ++ dependencies(scalatest, scalacheck)

@@ -116,7 +116,7 @@ class UnsafeBitArraySpec extends Properties("UnsafeBitArray") with Matchers with
     Prop.forAll(genSerializationTestCase) { serializationTestCase =>
       serializationTestCase.withBits{ bits =>
         val kryo = new Kryo()
-        kryo.setReferences(true)
+        kryo.setRegistrationRequired(true)
         bloomfilter.kryo.mutable.UnsafeBitArray.register(kryo)
 
         val bos = new ByteArrayOutputStream()
